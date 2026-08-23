@@ -1,6 +1,7 @@
 -- ============================================================================
 -- SUPABASE ROW-LEVEL SECURITY (RLS) MIGRATION & HARDENING SCRIPT
 -- Application: InsightFlow Analytics Platform
+-- (Idempotent: Safe to run multiple times without duplicate errors)
 -- ============================================================================
 
 -- 0. PROFILES TABLE
@@ -19,19 +20,25 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public profiles are viewable by everyone or user"
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone or user" ON public.profiles;
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
+CREATE POLICY "Public profiles are viewable by everyone"
 ON public.profiles FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert their own profile"
 ON public.profiles FOR INSERT
 WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
 ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
 
--- Trigger to auto-create profile on auth.users signup
+-- Auto-Trigger for New Signups in auth.users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -44,7 +51,9 @@ BEGIN
         COALESCE(NEW.raw_user_meta_data->>'role', 'Lead Business Data Analyst'),
         COALESCE(NEW.raw_user_meta_data->>'company', 'Enterprise Analytics')
     )
-    ON CONFLICT (id) DO NOTHING;
+    ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        updated_at = now();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -67,18 +76,22 @@ CREATE TABLE IF NOT EXISTS public.projects (
 
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can only view their own projects" ON public.projects;
 CREATE POLICY "Users can only view their own projects"
 ON public.projects FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only insert projects for themselves" ON public.projects;
 CREATE POLICY "Users can only insert projects for themselves"
 ON public.projects FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only update their own projects" ON public.projects;
 CREATE POLICY "Users can only update their own projects"
 ON public.projects FOR UPDATE
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only delete their own projects" ON public.projects;
 CREATE POLICY "Users can only delete their own projects"
 ON public.projects FOR DELETE
 USING (auth.uid() = user_id);
@@ -108,18 +121,22 @@ CREATE TABLE IF NOT EXISTS public.datasets (
 
 ALTER TABLE public.datasets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can only view their own datasets" ON public.datasets;
 CREATE POLICY "Users can only view their own datasets"
 ON public.datasets FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only insert datasets for themselves" ON public.datasets;
 CREATE POLICY "Users can only insert datasets for themselves"
 ON public.datasets FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only update their own datasets" ON public.datasets;
 CREATE POLICY "Users can only update their own datasets"
 ON public.datasets FOR UPDATE
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only delete their own datasets" ON public.datasets;
 CREATE POLICY "Users can only delete their own datasets"
 ON public.datasets FOR DELETE
 USING (auth.uid() = user_id);
@@ -139,34 +156,39 @@ CREATE TABLE IF NOT EXISTS public.chat_history (
 
 ALTER TABLE public.chat_history ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can only view their own chat history" ON public.chat_history;
 CREATE POLICY "Users can only view their own chat history"
 ON public.chat_history FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only insert chat messages for themselves" ON public.chat_history;
 CREATE POLICY "Users can only insert chat messages for themselves"
 ON public.chat_history FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can only delete their own chat history" ON public.chat_history;
 CREATE POLICY "Users can only delete their own chat history"
 ON public.chat_history FOR DELETE
 USING (auth.uid() = user_id);
 
 -- 4. STORAGE BUCKET ROW LEVEL SECURITY (datasets bucket)
--- Allows users to upload/download strictly inside their own user folder: {user_id}/...
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('datasets', 'datasets', false)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Users can view their own dataset storage files" ON storage.objects;
 CREATE POLICY "Users can view their own dataset storage files"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (bucket_id = 'datasets' AND (storage.foldername(name))[1] = auth.uid()::text);
 
+DROP POLICY IF EXISTS "Users can upload their own dataset storage files" ON storage.objects;
 CREATE POLICY "Users can upload their own dataset storage files"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'datasets' AND (storage.foldername(name))[1] = auth.uid()::text);
 
+DROP POLICY IF EXISTS "Users can delete their own dataset storage files" ON storage.objects;
 CREATE POLICY "Users can delete their own dataset storage files"
 ON storage.objects FOR DELETE
 TO authenticated
