@@ -513,21 +513,42 @@ class ApiService {
     onProgress?: ProgressCallback
   ): Promise<Dataset> {
     const targetProjId = projectId || this.projects[0]?.id || 'proj-general';
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('projectId', targetProjId);
-    if (customName) formData.append('customName', customName);
+    const isJson = file.name.toLowerCase().endsWith('.json');
+    const fileType: 'csv' | 'json' = isJson ? 'json' : 'csv';
+    const datasetName = customName || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
 
-    const backendRes = await apiClient.uploadWithProgress<any>(
-      '/datasets/upload',
-      formData,
-      onProgress
-    );
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('projectId', targetProjId);
+      if (customName) formData.append('customName', customName);
 
-    const mapped = this.mapBackendDatasetToFrontend(backendRes);
-    this.datasets = [mapped, ...this.datasets];
-    this.saveToStorage(STORAGE_KEYS.DATASETS, this.datasets);
-    return mapped;
+      const backendRes = await apiClient.uploadWithProgress<any>(
+        '/datasets/upload',
+        formData,
+        onProgress
+      );
+
+      if (backendRes?.id) {
+        const mapped = this.mapBackendDatasetToFrontend(backendRes);
+        this.datasets = [mapped, ...this.datasets];
+        this.saveToStorage(STORAGE_KEYS.DATASETS, this.datasets);
+        return mapped;
+      }
+    } catch (err: any) {
+      console.warn('Backend upload unavailable or returned error, parsing client-side:', err.message);
+    }
+
+    // Client-side fallback: read file content directly in browser
+    const rawText = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve((e.target?.result as string) || '');
+      reader.onerror = () => reject(new Error('Failed to read file on client.'));
+      reader.readAsText(file);
+    });
+
+    onProgress?.(100, file.size, file.size);
+    return this.parseRawDatasetClientFallback(rawText, datasetName, fileType, targetProjId);
   }
 
   private splitCSVLine(line: string, delimiter: string = ','): string[] {
