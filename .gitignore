@@ -1,0 +1,56 @@
+# ==========================================
+# Environment Variables & Secrets (STRICTLY PROTECTED)
+# ==========================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+
+# ==========================================
+# Dependencies & Virtual Environments
+# ==========================================
+node_modules/
+.venv/
+venv/
+env/
+ENV/
+.pnpm-store/
+
+# ==========================================
+# Build & Distribution Artifacts
+# ==========================================
+dist/
+build/
+out/
+dist-ssr/
+*.egg-info/
+.eggs/
+
+# ==========================================
+# Python & Testing Cache
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+coverage/
+*.log
+
+# ==========================================
+# OS & IDE Files
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,6 @@
+{
+  "name": "InsightFlow AI – Business Data Analyst",
+  "description": "Dynamic AI-powered business data analysis and analytics platform supporting generic dataset schema ingestion, automated statistical KPIs, dynamic visualizations, AI insights, recommendations, forecasting, and natural language data chat.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
