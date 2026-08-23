@@ -1,0 +1,17 @@
+[build]
+  base = "Business-data-analyst"
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  VITE_API_URL = "https://insightflow-backend-lx2d.onrender.com/api/v1"
+  VITE_API_BASE_URL = "https://insightflow-backend-lx2d.onrender.com/api/v1"
+  VITE_SUPABASE_URL = "https://myanparwjcpqcqafexug.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "sb_publishable_ztHWntIfq1LQeUrmKxNrBw_819aO74W"
+  VITE_SUPABASE_PROJECT_ID = "myanparwjcpqcqafexug"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
