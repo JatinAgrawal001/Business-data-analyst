@@ -80,8 +80,8 @@ class ApiService {
   // --- AUTH SERVICES ---
   async login(email: string, password?: string): Promise<User> {
     // 1. Authenticate via Supabase Client
-    try {
-      if (password) {
+    if (password) {
+      try {
         const { user: authUser } = await supabaseService.signIn(email, password);
         if (authUser) {
           const profile = await supabaseService.getProfile(authUser.id);
@@ -89,42 +89,22 @@ class ApiService {
           this.saveToStorage(STORAGE_KEYS.USER, this.user);
           return this.user;
         }
+      } catch (err: any) {
+        console.error('Supabase signIn error:', err);
+        const errMsg = err?.message || 'Authentication failed';
+        // If email not confirmed or invalid credentials, throw directly for UI to show
+        if (
+          errMsg.toLowerCase().includes('invalid login credentials') ||
+          errMsg.toLowerCase().includes('email not confirmed') ||
+          errMsg.toLowerCase().includes('rate limit') ||
+          errMsg.toLowerCase().includes('429')
+        ) {
+          throw new Error(errMsg);
+        }
       }
-    } catch (err: any) {
-      
     }
 
-    // 2. Authenticate via FastAPI Backend Endpoint
-    try {
-      const authRes = await apiClient.post<{ access_token: string; user: any }>('/auth/login', {
-        email,
-        password: password || 'demo-password'
-      });
-      if (authRes?.user) {
-        this.user = {
-          id: authRes.user.id,
-          name: authRes.user.name || email.split('@')[0],
-          email: authRes.user.email || email,
-          avatar: authRes.user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          role: authRes.user.role || 'Lead Business Data Analyst',
-          company: authRes.user.company || 'Enterprise Workspace',
-          plan: authRes.user.plan || 'Enterprise',
-          createdAt: authRes.user.createdAt || new Date().toISOString(),
-          preferences: authRes.user.preferences || {
-            theme: 'dark',
-            emailAlerts: true,
-            autoInsightDetection: true,
-            defaultConfidenceInterval: 95
-          }
-        };
-        this.saveToStorage(STORAGE_KEYS.USER, this.user);
-        return this.user;
-      }
-    } catch (apiErr: any) {
-      
-    }
-
-    // 3. Fallback Instant Workspace Session
+    // 2. Fallback Instant Workspace Session for Demo / Guest login
     this.user = {
       id: `usr-${Date.now().toString(36)}`,
       name: email.split('@')[0].replace(/[._]/g, ' ') || 'Lead Analyst',
@@ -146,8 +126,8 @@ class ApiService {
   }
 
   async signup(name: string, email: string, password?: string, company?: string): Promise<User> {
-    try {
-      if (password) {
+    if (password) {
+      try {
         const { user: authUser } = await supabaseService.signUp(email, password, name, company);
         if (authUser) {
           const profile = await supabaseService.getProfile(authUser.id);
@@ -155,29 +135,30 @@ class ApiService {
           this.saveToStorage(STORAGE_KEYS.USER, this.user);
           return this.user;
         }
+      } catch (err: any) {
+        console.error('Supabase signUp error:', err);
+        const errMsg = err?.message || 'Registration failed';
+        if (
+          errMsg.toLowerCase().includes('already registered') ||
+          errMsg.toLowerCase().includes('rate limit') ||
+          errMsg.toLowerCase().includes('429') ||
+          errMsg.toLowerCase().includes('password')
+        ) {
+          throw new Error(errMsg);
+        }
       }
-    } catch (err: any) {
-      
     }
 
-    try {
-      const regRes = await apiClient.post<{ access_token: string; user: any }>('/auth/register', {
-        name,
-        email,
-        password: password || 'demo-password',
-        company
-      });
-      if (regRes?.user) {
-        this.user = {
-          id: regRes.user.id,
-          name: regRes.user.name || name,
-          email: regRes.user.email || email,
-          company: company || 'Enterprise Corp',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          role: 'Lead Business Analyst',
-          plan: 'Enterprise',
-          createdAt: new Date().toISOString(),
-          preferences: {
+    this.user = {
+      id: `usr-${Date.now().toString(36)}`,
+      name: name || email.split('@')[0],
+      email: email || 'analyst@domain.com',
+      company: company || 'Enterprise Analytics',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      role: 'Lead Business Analyst',
+      plan: 'Enterprise',
+      createdAt: new Date().toISOString(),
+      preferences: {
             theme: 'dark',
             emailAlerts: true,
             autoInsightDetection: true,
